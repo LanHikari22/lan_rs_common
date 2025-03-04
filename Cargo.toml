@@ -1,0 +1,29 @@
+[package]
+name = "lan_rs_common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitflags = "2.8.0"
+ibig = "0.3.6"
+im = "15.1.0"
+itertools = "0.14.0"
+libm = "0.2.11"
+log = "0.4.25"
+ndarray = "0.16.1"
+ndarray-linalg = { version = "0.16", features = ["openblas"] }
+petgraph = "0.7.1"
+petgraph-evcxr = "0.2.0"
+polars = "0.46.0"
+rand = "0.8.5"
+regex = "1.11.1"
+reqwest = { version = "0.12.12", features = ["blocking"] }
+rpds = "1.1.0"
+tap = "1.0.1"
+
+[dependencies.blas-src]
+version = "0.9"
+default-features = false
+features = ["openblas"]
