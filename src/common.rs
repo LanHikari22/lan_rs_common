@@ -1,3 +1,4 @@
+use ibig::{ubig, UBig};
 #[allow(unused_imports)]
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
@@ -11,22 +12,31 @@ extern crate petgraph;
 use petgraph::graph::Graph;
 // use petgraph::dot::Dot;
 // use petgraph_evcxr::{draw_dot};
-use ndarray::{s, Array2, ShapeBuilder};
 use petgraph_evcxr::draw_graph;
 use reqwest::blocking::Client;
 // use std::collections::HashMap;
 use bitflags::bitflags;
 use libm;
-use polars::prelude::*;
 use regex::Regex;
 use std::fs::File;
 use std::io::prelude::*; // needed for traits like the Read trait
 use std::io::{self, Error};
 use std::path::Path;
-use std::sync::Arc;
+use generator::{done, Generator, Gn};
+use rayon::{
+    iter::plumbing::{bridge, Producer},
+    prelude::*,
+};
+use std::{sync::{Arc, Mutex}, time::{Duration, Instant}};
 use tap::prelude::*;
 
-/*** IO  ***/
+#[cfg(feature = "df")]
+use polars::prelude::*;
+
+#[cfg(feature = "use_ndarray")]
+use ndarray::{s, Array2, ShapeBuilder};
+
+/* \begin{IO} */
 
 pub fn read_user_input(prompt: &str) -> String {
     let mut input = String::new();
@@ -125,9 +135,9 @@ pub fn read_square_char_input(s: &str) -> (usize, String) {
         .pipe(|s| (get_square_buf_length(&s).expect("Must have square buf"), s))
 }
 
-/*** /IO  ***/
+/* \end{IO} */
 
-/*** regex  ***/
+/* \begin{regex} */
 
 pub fn regex_capture_once(s: &str, re: &Regex) -> Result<Vector<String>, String> {
     re.pipe(|re| {
@@ -225,9 +235,9 @@ pub fn chain_scanners<T: Clone>(
         })
 }
 
-/*** /regex  ***/
+/* \end{regex} */
 
-/*** graph  ***/
+/* \begin{graph} */
 
 pub fn create_u32_directed_graph(edges: &Vector<(u32, u32)>) -> Graph<u32, &str> {
     let mut g: Graph<u32, &str> = Graph::new();
@@ -252,6 +262,9 @@ pub fn create_u32_directed_graph(edges: &Vector<(u32, u32)>) -> Graph<u32, &str>
 pub fn visualize_u32_directed_graph(edges: Vector<(u32, u32)>) {
     create_u32_directed_graph(&edges).pipe(|g| draw_graph(&g))
 }
+
+
+#[cfg(feature = "use_ndarray")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DirectedGraph {
     /// From passed in edge values to internal node numbers
@@ -262,6 +275,7 @@ pub struct DirectedGraph {
     pub adj_matrix: Array2<u32>,
 }
 
+#[cfg(feature = "use_ndarray")]
 impl DirectedGraph {
     pub fn from_edges(edges: &Vector<(u32, u32)>) -> Self {
         let (lookup, rev_lookup, num_nodes) = //_
@@ -322,6 +336,7 @@ impl DirectedGraph {
             })
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn create_adjacency_matrix(
         edges: &Vector<(u32, u32)>,
         lookup: &HashMap<u32, u32>,
@@ -338,6 +353,7 @@ impl DirectedGraph {
         result
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn adj_matrix_of_degree(&self, n: u32) -> Array2<u32> {
         (0..n - 1)
             .into_iter()
@@ -345,6 +361,7 @@ impl DirectedGraph {
                 acc.dot(&self.adj_matrix))
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn adj_matrix_of_degree_bin(&self, n: u32) -> Array2<u32> {
         (0..n - 1)
             .fold(self.adj_matrix.clone(), |acc, _i| {
@@ -352,6 +369,7 @@ impl DirectedGraph {
             })
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn adj_matrices_to_degree(&self, n: u32) -> Vector<Array2<u32>> {
         (0..n - 1)
             .into_iter()
@@ -378,6 +396,7 @@ impl DirectedGraph {
             }).into_inner()
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn adj_matrices_to_degree_bin(&self, n: u32) -> Vector<Array2<u32>> {
         (0..n - 1)
             .into_iter()
@@ -400,6 +419,7 @@ impl DirectedGraph {
             })
     }
 
+    #[cfg(feature = "use_ndarray")]
     /// Computes whether any 1-path...n-path exists between any two nodes
     pub fn adj_matrix_of_degree_up_to(&self, n: u32) -> Array2<u32> {
         (0..n - 1)
@@ -431,6 +451,7 @@ impl DirectedGraph {
         }
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn to_bin_matrix(mat: &Array2<u32>, length: usize) -> Array2<u32> {
         let mut result = mat.clone();
 
@@ -536,6 +557,7 @@ impl DirectedGraph {
         draw_graph(&g);
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn init_path_reconstruction_context(&self) -> Vector<Array2<u32>> {
         let adj_matrices_per_deg = {
             self.adj_matrices_to_degree_bin(self.length as u32)
@@ -544,6 +566,7 @@ impl DirectedGraph {
         adj_matrices_per_deg
     }
 
+    #[cfg(feature = "use_ndarray")]
     pub fn reconstruct_paths_between_nodes(
         &self,
         context: &Vector<Array2<u32>>,
@@ -663,9 +686,9 @@ impl DirectedGraph {
     }
 }
 
-/*** /graph  ***/
+/* \end{graph} */
 
-/*** ansi style  ***/
+/* \begin{ansi style} */
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -796,6 +819,7 @@ pub fn highlight_vect_u32(v: &Vector<u32>, style_lookup: &HashMap<u32, AnsiStyle
     )
 }
 
+#[cfg(feature = "use_ndarray")]
 pub fn display_matrix(
     mat: &Array2<u32>,
     length: usize,
@@ -832,9 +856,9 @@ pub fn display_matrix(
     result
 }
 
-/*** /ansi style ***/
+/* \end{ansi style} */
 
-/*** pipe ***/
+/* \begin{pipe} */
 
 #[macro_export]
 macro_rules! pass_ref {
@@ -985,9 +1009,315 @@ pub fn then_if<T>(cond: bool, f: impl Fn(T) -> T) -> impl Fn(T) -> T {
     move |initial| if cond { f(initial) } else { initial }
 }
 
-/*** /pipe  ***/
+/* \end{pipe} */
 
-/*** other  ***/
+/* \begin{dataframe} */
+
+#[cfg(feature = "df")]
+pub fn validate_lf_with_schema(lf: &LazyFrame, schema: Schema) -> Result<(), String> {
+    schema
+        .iter_fields()
+        .fold_while(Ok(()), |_, field| {
+            let checks = {
+                lf //_
+                    .clone()
+                    .collect_schema()
+                    .map_err(|e| e.to_string())
+                    .and_then(|lf_schema| {
+                        if lf_schema.contains(field.name()) {
+                            Ok(lf_schema)
+                        } else {
+                            Err(format!("Failed to validate schema: Could not find column {} in df", field.name()))
+                        }
+                    })
+                    .and_then(|lf_schema| {
+                        Ok(lf_schema.get_field(field.name()).unwrap())
+                    })
+                    .and_then(|lf_field| {
+                        if lf_field.dtype == *field.dtype() {
+                            Ok(field)
+                        } else {
+                            Err(format!("Failed to validate schema: Expected {} but found {}", lf_field.dtype, field.dtype()))
+                        }
+                    })
+                    .and_then(|_| Ok(()))
+            };
+
+            if let Err(e) = checks {
+                Done(Err(e))
+            } else {
+                Continue(Ok(()))
+            }
+        }).into_inner()
+}
+
+#[cfg(feature = "df")]
+pub fn validate_df_with_schema(df: &DataFrame, schema: Schema) -> Result<(), String> {
+    schema
+        .iter_fields()
+        .fold_while(Ok(()), |_, field| {
+            let col_res = {
+                df //_
+                    .column(field.name())
+                    .map_err(|_| format!("Failed to validate schema: Could not find column {} in df", field.name()))
+            };
+
+            if let Ok(col) = col_res {
+                if col.dtype() != field.dtype() {
+                    Done(Err(format!("Failed to validate schema: Expected {} but found {}", col.dtype(), field.dtype())))
+                } else {
+                    Continue(Ok(()))
+                }
+            } else {
+                Done(Err(col_res.unwrap_err()))
+            }
+        }).into_inner()
+}
+
+#[cfg(feature = "df")]
+pub fn read_csv_into_dataframe(csv_path: &str) -> Result<DataFrame, String> {
+    let file = {
+        File::open(csv_path)
+            .map_err(|e| e.to_string())?
+    };
+
+    let df = {
+        CsvReader::new(file)
+            .finish()
+            .map_err(|e| e.to_string())?
+    };
+
+    Ok(df)
+}
+
+#[cfg(feature = "df")]
+pub fn load_csv_into_lazyframe(csv_path: &str) -> Result<LazyFrame, String> {
+    let df = {
+        LazyCsvReader::new(csv_path)
+            .finish()
+            .map_err(|e| e.to_string())?
+    };
+
+    Ok(df)
+}
+
+#[cfg(feature = "df")]
+pub fn save_lf_to_csv(lf: LazyFrame, csv_path: &str) -> Result<(), String> {
+    let file = {
+        File::create(csv_path)
+            .map_err(|e| e.to_string())?
+    };
+
+    let mut df = {
+        lf //_
+            .collect()
+            .map_err(|e| e.to_string())?
+    };
+
+    CsvWriter::new(file) //_
+        .finish(&mut df)
+        .map_err(|e| e.to_string())?
+        .pipe(|_| Ok(()))
+}
+
+/* \end{dataframe} */
+
+/* \begin{benchmark} */
+
+pub fn benchmark_collect_vec<'a, T: Send, I: Iterator<Item = T> + Send + 'a>(
+    input: I,
+) -> Generator<'a, (), (Duration, Vec<T>)> {
+    Gn::new_scoped(|mut s| {
+        let start = Instant::now();
+        let res = input.collect::<Vec<T>>();
+        let duration = start.elapsed();
+
+        s.yield_with((duration, res));
+
+        done!();
+    })
+}
+
+pub fn benchmark_debug_log_mean<'a, T: Send, I: Iterator<Item = T> + Send + 'a>(
+    input: I,
+    label: &'a str,
+    opt_batch: Option<u32>,
+) -> Generator<'a, (), T> {
+    Gn::new_scoped(move |mut s| {
+        let label = if label != "" {format!("{label}: ")} else {"".to_string()};
+
+        println!("{label}Measuring Time...");
+
+        let start = Instant::now();
+        let mut counter = 0;
+        let mut prev_duration = start.elapsed();
+
+        for elem in input {
+            // println!("counter {counter}");
+            counter += 1;
+            s.yield_with(elem);
+
+            if let Some(batch) = opt_batch {
+                if counter % batch == 0 {
+                    let duration = start.elapsed();
+                    println!("{label}Batch Duration Measured: Total ({counter}): Per {batch} ({:?}, Mean: {:?}), Cumulative ({duration:?}, Mean: {:?})", 
+                        (duration - prev_duration),
+                        (duration - prev_duration).div_f32(batch as f32),
+                        duration.div_f32(counter as f32));
+                    prev_duration = duration;
+                }
+            }
+        }
+
+        let duration = start.elapsed();
+
+        println!(
+            "{label}Duration Measured: Total ({counter}): {duration:?}, Mean: {:?}",
+            duration.div_f32(counter as f32)
+        );
+
+        done!();
+    })
+}
+
+pub fn benchmark_debug_log_mean_par<I: ParallelIterator>(iter: I, label: &str, opt_batch: Option<u32>,) -> impl ParallelIterator<Item = I::Item> {
+    let counter = Arc::new(Mutex::new(0));
+    let label = if label != "" {format!("{label}: ")} else {"".to_string()};
+
+    println!("{label}Measuring Time...");
+
+    let start = Instant::now();
+    let prev_duration = Arc::new(Mutex::new(start.elapsed()));
+
+    let iter = {
+        iter.map_with((counter.clone(), prev_duration.clone()),  |(counter, prev_duration), item| {
+            let mut counter_guard = counter.lock().unwrap();
+            let mut prev_duration_guard = prev_duration.lock().unwrap();
+
+            *counter_guard += 1;
+
+            if let Some(batch) = opt_batch {
+                if *counter_guard % batch == 0 {
+                    let duration = start.elapsed();
+                    println!("{label}Batch Duration Measured: Total ({}): Per {batch} ({:?}, Mean: {:?}), Cumulative ({duration:?}, Mean: {:?})", 
+                        *counter_guard,
+                        (duration - *prev_duration_guard),
+                        (duration - *prev_duration_guard).div_f32(batch as f32),
+                        duration.div_f32(*counter_guard as f32));
+                    *prev_duration_guard = duration;
+                }
+            }
+
+            item
+        })
+    };
+
+    iter.collect::<Vec<I::Item>>()
+        .tap(|_| {
+            let duration = start.elapsed();
+            let counter_guard = counter.lock().unwrap();
+
+            println!(
+                "{label}Duration Measured: Total ({}): {duration:?}, Mean: {:?}",
+                *counter_guard,
+                duration.div_f32(*counter_guard as f32)
+            );
+        })
+        .into_par_iter()
+}
+
+/* \end{benchmark} */
+
+/* \begin{math} */
+
+pub fn ubig_is_prime(n: &UBig) -> bool {
+    let sqrt_n: UBig = { ubig_sqrt_using_newtons_method(&n, 20) };
+
+    ubig_range_inclusive(ubig!(2), sqrt_n) //_
+        .all(|m| 
+            //_
+            m == *n || n % m != ubig!(0)
+        )
+}
+
+pub fn ubig_primes(len: UBig) -> Vec<UBig> {
+    ubig_range_inclusive(ubig!(2), len.clone())
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        // .into_iter()
+        .skip(2)
+        .filter(|n| ubig_is_prime(n))
+        .pipe(|x| x)
+        .pipe(enumerate_ubig_par)
+        // .pipe(enumerate_ubig)
+        // .take_while(|(nth_prime, _nth)| *nth_prime < len)
+        // .pipe(|iter| benchmark_debug_log_mean_par(iter, "primes", Some(10000)))
+        // .pipe(|iter| benchmark_debug_log_mean(iter, "primes", Some(10000)))
+        .map(|(_nth_prime, nth)| nth)
+        .collect::<Vec<_>>()
+}
+
+pub fn ubig_prime_factors(n: UBig) -> Vec<UBig> {
+    ubig_primes(ubig_sqrt_using_newtons_method(&n, 20))
+        .into_par_iter()
+        .filter(|p| n.clone() % p == ubig!(0))
+        .map(|n| n.clone())
+        .collect::<Vec<UBig>>()
+}
+
+/* \end{math} */
+
+/* \begin{UBig} */
+
+pub fn ubig_range_inclusive(m: UBig, n: UBig) -> impl Iterator<Item = UBig> {
+    std::iter::successors(Some(m.clone()), move |i| {
+        if i >= &n {
+            None // Stop iteration end of range
+        } else {
+            Some(i + 1) // Increment `UBig` manually
+        }
+    })
+}
+
+/// r_{n+1} = \frac{1}{2} {\left(r_n + \frac{k}{r_n}\right)}
+/// Or in easier to compute (no 1/ns) form
+/// r_{n+1} = \frac{k + r_n^2}{2 r_n}
+pub fn ubig_sqrt_using_newtons_method(k: &UBig, num_iters: usize) -> UBig {
+    (0..num_iters).fold(k.clone(), |prev_estimate, _| {
+        (k + &prev_estimate * &prev_estimate) / (2 * prev_estimate)
+    })
+}
+
+pub fn enumerate_ubig<'a, T: Send, I: Iterator<Item = T> + Send + 'a>(
+    input: I,
+) -> Generator<'a, (), (UBig, T)> {
+    Gn::new_scoped(|mut s| {
+        let mut counter: UBig = ubig!(0);
+
+        for elem in input {
+            s.yield_with((counter.clone(), elem));
+
+            counter = counter + 1;
+        }
+        done!();
+    })
+}
+
+pub fn enumerate_ubig_par<I: ParallelIterator>(iter: I) -> impl ParallelIterator<Item = (UBig, I::Item)> {
+    let counter = Arc::new(Mutex::new(UBig::from(0u8)));
+
+    iter.map_with(counter, |counter, item| {
+        let mut guard = counter.lock().unwrap();
+        let idx = guard.clone();
+        *guard += 1u8;
+
+        (idx, item)
+    })
+}
+
+/* \end{UBig} */
+
+/* \begin{other} */
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub fn do_add(left: u32, right: u32) -> u32 {
@@ -1009,6 +1339,7 @@ pub fn i32_rows_to_columns(tuples: Vector<Vector<i32>>, num_columns: usize) -> V
         })
 }
 
+#[cfg(feature = "df")]
 pub fn i32_columns_to_df(
     columns: Vector<Vector<i32>>,
     names: Vec<&str>,
@@ -1081,4 +1412,9 @@ pub fn vec_to_tup2<T: Clone>(mut vec: Vector<T>) -> (T, T) {
     (vec.pop_back().unwrap(), vec.pop_back().unwrap())
 }
 
-/*** /other ***/
+pub fn vec_push<T>(mut vec: Vec<T>, v: T) -> Vec<T> {
+    vec.push(v);
+    vec
+}
+
+/* \end{other} */
