@@ -14,6 +14,10 @@ pub mod plot;
 
 pub use common::*;
 
+pub mod util;
+pub use util::*;
+
+
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg(test)]
 mod tests {
