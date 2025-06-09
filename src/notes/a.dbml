@@ -1,0 +1,44 @@
+// Table Statistics {
+//     id int [pk]
+// }
+
+// Table Characters {
+//     id int [pk]
+//     char_name text
+//     sex text
+//     stat_id int [ref: - Statistics.id]
+// }
+
+// Table Cards {
+//     id int [pk]
+//     effect text
+//     stat_id int [ref: - Statistics.id]
+// }
+
+
+
+// Table Statistics {
+//     id int [pk]
+//     cards_appeared_in_battle_id int [ref: - Cards.id]
+//     characters_appeared_in_battle_id int [ref: - Characters.id]
+// }
+
+// Table Characters {
+//     id int [pk]
+//     char_name text
+//     sex text
+// }
+
+// Table Cards {
+//     id int [pk]
+//     effect text
+// }
+
+
+Table SuperTable {
+    statistics_id int [pk]
+    char_id int [pk]
+    char_name text
+    sex text
+    effect text
+}

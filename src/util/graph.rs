@@ -6,28 +6,29 @@ use tap::prelude::*;
 
 /* \begin{graph} */
 
-pub fn create_u32_directed_graph(edges: &Vector<(u32, u32)>) -> Graph<u32, &str> {
-    let mut g: Graph<u32, &str> = Graph::new();
+pub fn create_u32_directed_graph<I: Iterator<Item = (u32, u32)>>(edges: I) -> Graph<u32, String> {
+    let mut g: Graph<u32, String> = Graph::new();
     let mut nodes_map: HashMap<u32, petgraph::graph::NodeIndex> = HashMap::new();
 
     for (head, tail) in edges {
         if !nodes_map.contains_key(&head) {
-            let node_idx = g.add_node(*head);
-            nodes_map.insert(*head, node_idx);
+            let node_idx = g.add_node(head);
+            nodes_map.insert(head, node_idx);
         }
         if !nodes_map.contains_key(&tail) {
-            let node_idx = g.add_node(*tail);
-            nodes_map.insert(*tail, node_idx);
+            let node_idx = g.add_node(tail);
+            nodes_map.insert(tail, node_idx);
         }
 
-        g.add_edge(nodes_map[&tail], nodes_map[&head], "");
+        g.add_edge(nodes_map[&tail], nodes_map[&head], "".to_string());
     }
 
     g
 }
 
-pub fn visualize_u32_directed_graph(edges: Vector<(u32, u32)>) {
-    create_u32_directed_graph(&edges).pipe(|g| draw_graph(&g))
+pub fn visualize_u32_directed_graph<I: Iterator<Item = (u32, u32)>>(edges: I) {
+    create_u32_directed_graph(edges)
+        .pipe(|g| draw_graph(&g))
 }
 
 

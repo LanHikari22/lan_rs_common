@@ -1,12 +1,7 @@
-#[allow(unused_imports)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use im::{hashmap, hashset, ordset, vector, HashMap, HashSet, OrdSet, Vector};
-// use itertools::FoldWhile::{Continue, Done};
-// use itertools::Itertools;
-// use libm;
-// use log::Level;
-// use rpds::{list, List};
-// extern crate petgraph;
-#[allow(unused_imports)]
 use tap::prelude::*;
 
 pub mod common;
