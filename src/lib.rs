@@ -6,6 +6,7 @@ use tap::prelude::*;
 
 pub mod common;
 pub mod plot;
+pub mod graph_search;
 
 pub use common::*;
 

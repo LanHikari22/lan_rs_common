@@ -1,3 +1,8 @@
+#[cfg(feature = "incl_plot")]
+mod plot {
+
+}
+
 /* 
 use derive_builder::Builder;
 #[allow(unused_imports)]

@@ -1,11 +1,15 @@
+#[cfg(feature = "use_petgraph")]
 extern crate petgraph;
 use im::{HashMap, Vector};
+#[cfg(feature = "use_petgraph")]
 use petgraph::graph::Graph;
+#[cfg(feature = "use_petgraph")]
 use petgraph_evcxr::draw_graph;
 use tap::prelude::*;
 
 /* \begin{graph} */
 
+#[cfg(feature = "use_petgraph")]
 pub fn create_u32_directed_graph<I: Iterator<Item = (u32, u32)>>(edges: I) -> Graph<u32, String> {
     let mut g: Graph<u32, String> = Graph::new();
     let mut nodes_map: HashMap<u32, petgraph::graph::NodeIndex> = HashMap::new();
@@ -26,6 +30,7 @@ pub fn create_u32_directed_graph<I: Iterator<Item = (u32, u32)>>(edges: I) -> Gr
     g
 }
 
+#[cfg(feature = "use_petgraph")]
 pub fn visualize_u32_directed_graph<I: Iterator<Item = (u32, u32)>>(edges: I) {
     create_u32_directed_graph(edges)
         .pipe(|g| draw_graph(&g))
