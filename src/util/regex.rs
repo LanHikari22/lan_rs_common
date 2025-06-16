@@ -102,4 +102,44 @@ pub fn chain_scanners<T: Clone>(
         })
 }
 
+/// This will exhaust a string stream using `try_scan_fn`. It allows the callback to determine the
+/// amount of advance in the stream for the next call, or it fails otherwise.
+pub fn exhaustively_process_using_scanners<T: Clone>(
+    s: &str,
+    try_scan_fn: impl Fn(&str) -> Option<(T, usize)>,
+) -> Result<Vec<T>, (Vec<T>, usize)> {
+
+    let mut mut_acc_items: Vec<T> = vec![];
+    let mut mut_acc_advance = 0;
+
+    loop {
+        let scan_opt = try_scan_fn(&s[mut_acc_advance..]);
+
+        match scan_opt {
+            Some((item, advance)) => {
+                mut_acc_items.push(item);
+                let prev_acc_advance = mut_acc_advance;
+                mut_acc_advance += advance;
+
+                if prev_acc_advance >= s.len() {
+                    // We have reached the end
+                    break;
+                }
+            },
+
+            None => {
+                // We have failed to exhaaustively scan the buffer
+                break;
+            },
+        }
+    }
+
+    if mut_acc_advance == s.len() {
+        Ok(mut_acc_items)
+    } else{
+        Err((mut_acc_items, mut_acc_advance))
+    }
+}
+
+
 /* \end{regex} */
