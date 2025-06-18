@@ -1,12 +1,12 @@
 #[allow(unused_imports)]
+use im::{hashmap, hashset, ordset, vector, HashMap, HashSet, OrdSet, Vector};
+#[allow(unused_imports)]
 use itertools::FoldWhile::{Continue, Done};
 #[allow(unused_imports)]
 use itertools::Itertools;
-#[allow(unused_imports)]
-use im::{hashmap, hashset, ordset, vector, HashMap, HashSet, OrdSet, Vector};
-#[allow(unused_imports)]
-use rpds::{list, List};
+#[cfg(feature = "use_network")]
 use reqwest::blocking::Client;
+#[allow(unused_imports)]
 // use std::collections::HashMap;
 use bitflags::bitflags;
 use libm;
@@ -22,7 +22,6 @@ use polars::prelude::*;
 
 #[cfg(feature = "use_ndarray")]
 use ndarray::{s, Array2, ShapeBuilder};
-
 
 /* \begin{other} */
 
@@ -82,6 +81,7 @@ pub fn is_palindrom(s: &str) -> bool {
         .all(|(left, right)| left == right)
 }
 
+#[cfg(feature = "use_network")]
 pub fn fetch(url: &str) -> Option<String> {
     // from https://phrohdoh.com/blog/sync-http-rust/
     Client::new()
@@ -123,5 +123,46 @@ pub fn vec_push<T>(mut vec: Vec<T>, v: T) -> Vec<T> {
     vec.push(v);
     vec
 }
+
+pub fn get_lineno_and_col_at_index(
+    lines: std::str::Lines<'_>,
+    index: usize,
+) -> Option<(usize, usize)> {
+    let (lineno_opt, cur_index) = {
+        lines
+            .enumerate()
+            .fold_while((None, 0), |(_res_lineno, cur_index), (lineno, line)| {
+                // println!("index: {index}, cur_index: {cur_index}, lineno: {lineno}");
+                if cur_index <= index {
+                    if index <= cur_index + line.len() {
+                        // Within range!
+                        Done((Some(lineno), cur_index + line.len()))
+                    } else {
+                        Continue((None, cur_index + line.len() + "\n".len()))
+                    }
+                } else {
+                    // We passed where the index should be...
+                    Done((None, cur_index))
+                }
+            })
+            .into_inner()
+    };
+
+    match lineno_opt {
+        Some(lineno) => Some((lineno, cur_index)),
+        None => None,
+    }
+    .and_then(|(linenum, cur_index)| Some((linenum, cur_index - index)))
+}
+
+pub fn cartesian_product_str_concat(left: &Vector<String>, right: &Vec<&str>) -> Vector<String> {
+    left.iter()
+        .cartesian_product(right.into_iter())
+        .fold(vector![], |acc, tup| {
+            &acc + &vector![tup.0.to_owned() + tup.1]
+        })
+}
+
+
 
 /* \end{other} */
