@@ -15,6 +15,7 @@ use_network = ["reqwest"]
 use_serde = ["csv", "serde"]
 use_glob = ["glob"]
 use_arbitrary = ["arbitrary"]
+use_ron = ["ron", "serde"]
 
 [dependencies]
 itertools = "0.14.0"
@@ -47,6 +48,7 @@ blas-src = { version = "0.9", default-features = false, features = ["openblas"],
 
 
 serde = { version = "1.0.219", features = ["derive"], optional = true}
+ron = { version = "0.10.1", optional = true }
 csv = { version = "1.3.1", optional = true }
 
 arbitrary = { version = "1.4.1", features = ["derive", "derive_arbitrary"], optional = true }

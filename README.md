@@ -30,7 +30,8 @@ analysis, mathematics, plotting, iterator-based and functional programming, and 
 
 # Contributing
 
-All contributions are welcome! I would appreciate feedback on improving the library and optimizing for use cases I haven't thought of yet! Please feel free to contact me by opening an issue ticket or emailing lanhikarixx@gmail.com if you want to chat. If you email, please start the title with "GITHUB".
+All contributions are welcome! I would appreciate feedback on improving the library and optimizing for use cases I haven't thought of yet! Please feel free to contact me by opening an issue ticket or emailing lanhikarixx@gmail.com if you want to chat. Just start the title with "GITCHAT".
+
 
 # License
 

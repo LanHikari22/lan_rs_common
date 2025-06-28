@@ -8,7 +8,7 @@ use std::error::Error;
 use std::io::prelude::*; // needed for traits like the Read trait
 #[cfg(feature = "use_serde")]
 use csv::{WriterBuilder, ReaderBuilder};
-#[cfg(feature = "use_serde")]
+#[cfg(any(feature = "use_serde", feature = "use_ron"))]
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::has_decimals;
@@ -173,6 +173,89 @@ pub fn glob_multiple_file_formats_in_path(
         })
         .concat()
 }
+
+/* \begin{RON IO} */
+/// This uses example [repro003](<https://github.com/LanHikari22/rs_repro/blob/main/src/repro_tracked/repro003_ron_read_write.rs>)
+
+#[cfg(feature = "use_ron")]
+use ron::{
+    Error as RonError,
+    de::{Position, SpannedError},
+    error::SpannedResult,
+    ser::PrettyConfig,
+};
+#[cfg(feature = "use_ron")]
+use std::{
+    // fs::File,
+    // io::{Read, Write},
+    // path::PathBuf,
+    str::FromStr,
+};
+
+/// Serializes a list of T into a string with one record per line
+#[cfg(feature = "use_ron")]
+pub fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, RonError> {
+    let mut mut_str = String::new();
+
+    let as_strings = {
+        records
+            .into_iter()
+            .map(|record| {
+                ron::ser::to_string_pretty(
+                    &record,
+                    PrettyConfig::new()
+                        .compact_arrays(true)
+                        .compact_maps(true)
+                        .compact_structs(true)
+                        .escape_strings(true),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    };
+
+    as_strings.into_iter().for_each(|s| {
+        mut_str.push_str(&s);
+        mut_str.push_str(if cfg!(not(target_os = "windows")) {
+            "\n"
+        } else {
+            "\r\n"
+        })
+    });
+
+    Ok(mut_str)
+}
+
+/// Serializes a list of T into a text file with one record per line
+#[cfg(feature = "use_ron")]
+pub fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<usize, RonError> {
+    let mut file = File::create(path)?;
+
+    file.write(write_ron_vec_to_str(records)?.as_bytes())
+        .map_err(|err| RonError::Io(err.to_string()))
+}
+
+/// This reader assumes that every row has one entry, so it would not work if they are split across lines.
+#[cfg(feature = "use_ron")]
+pub fn read_ron_vec_from_str<T: DeserializeOwned>(s: &str) -> SpannedResult<Vec<T>> {
+    s //_
+        .lines()
+        .map(|s| ron::from_str::<T>(s))
+        .collect::<Result<Vec<_>, _>>()
+}
+
+#[cfg(feature = "use_ron")]
+pub fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<Vec<T>, RonError> {
+    let mut file = File::open(path)?;
+
+    let mut content = String::new();
+
+    file.read_to_string(&mut content)?;
+
+    read_ron_vec_from_str(&content).map_err(|e| e.code)
+}
+
+
+/* \end{RON IO} */
 
 
 /* \end{IO} */
