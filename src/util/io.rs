@@ -1,15 +1,18 @@
-
 /* \begin{IO} */
 
-use std::{fs::File, io::{self, Read, Write}, path::{Path, PathBuf}};
-use tap::prelude::*;
+#[cfg(feature = "use_serde")]
+use csv::{ReaderBuilder, WriterBuilder};
 use im::Vector;
+#[cfg(any(feature = "use_serde", feature = "use_ron"))]
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::error::Error;
 use std::io::prelude::*; // needed for traits like the Read trait
-#[cfg(feature = "use_serde")]
-use csv::{WriterBuilder, ReaderBuilder};
-#[cfg(any(feature = "use_serde", feature = "use_ron"))]
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+    path::{Path, PathBuf},
+};
+use tap::prelude::*;
 
 use crate::has_decimals;
 
@@ -129,8 +132,7 @@ pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<
 #[cfg(feature = "use_serde")]
 pub fn read_vec_from_csv<T: DeserializeOwned>(path: &str) -> Result<Vec<T>, Box<dyn Error>> {
     let file = File::open(path)?;
-    let mut reader = ReaderBuilder::new()
-        .from_reader(file);
+    let mut reader = ReaderBuilder::new().from_reader(file);
 
     let mut result = Vec::new();
     for record in reader.deserialize() {
@@ -179,10 +181,10 @@ pub fn glob_multiple_file_formats_in_path(
 
 #[cfg(feature = "use_ron")]
 use ron::{
-    Error as RonError,
     de::{Position, SpannedError},
     error::SpannedResult,
     ser::PrettyConfig,
+    Error as RonError,
 };
 #[cfg(feature = "use_ron")]
 use std::{
@@ -191,6 +193,35 @@ use std::{
     // path::PathBuf,
     str::FromStr,
 };
+
+#[cfg(feature = "use_ron")]
+pub fn write_ron_obj_to_str<T: Serialize>(obj: &T) -> Result<String, RonError> {
+    ron::ser::to_string_pretty(obj, PrettyConfig::default())
+}
+
+#[cfg(feature = "use_ron")]
+pub fn write_ron_obj_to_file<T: Serialize>(path: &PathBuf, obj: &T) -> Result<usize, RonError> {
+    let mut file = File::create(path)?;
+
+    file.write(write_ron_obj_to_str(obj)?.as_bytes())
+        .map_err(|err| RonError::Io(err.to_string()))
+}
+
+#[cfg(feature = "use_ron")]
+pub fn read_ron_obj_from_str<T: DeserializeOwned>(s: &str) -> SpannedResult<T> {
+    ron::from_str::<T>(s)
+}
+
+#[cfg(feature = "use_ron")]
+pub fn read_ron_obj_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<T, RonError> {
+    let mut file = File::open(path)?;
+
+    let mut content = String::new();
+
+    file.read_to_string(&mut content)?;
+
+    read_ron_obj_from_str(&content).map_err(|e| e.code)
+}
 
 /// Serializes a list of T into a string with one record per line
 #[cfg(feature = "use_ron")]
@@ -227,7 +258,10 @@ pub fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, RonEr
 
 /// Serializes a list of T into a text file with one record per line
 #[cfg(feature = "use_ron")]
-pub fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<usize, RonError> {
+pub fn write_ron_vec_to_file<T: Serialize>(
+    path: &PathBuf,
+    records: &[T],
+) -> Result<usize, RonError> {
     let mut file = File::create(path)?;
 
     file.write(write_ron_vec_to_str(records)?.as_bytes())
@@ -254,8 +288,6 @@ pub fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<Vec
     read_ron_vec_from_str(&content).map_err(|e| e.code)
 }
 
-
 /* \end{RON IO} */
-
 
 /* \end{IO} */
