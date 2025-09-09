@@ -16,7 +16,7 @@ use std::{
 
 use tap::prelude::*;
 
-pub fn read_user_input(prompt: &str) -> String {
+pub fn read_user_input(prompt: &str) -> io::Result<String> {
     let mut input = String::new();
 
     if prompt != "" {
@@ -24,26 +24,22 @@ pub fn read_user_input(prompt: &str) -> String {
         eprint!("{0}: ", prompt);
     }
 
-    io::stdin()
-        .read_line(&mut input)
-        .expect("Failed to read input line");
+    io::stdin().read_line(&mut input)?;
 
-    input.trim().to_string()
+    Ok(input.trim().to_string())
 }
 
-pub fn read_file_to_string(input_path: &str) -> String {
-    let path = Path::new(input_path);
-    let mut file = File::open(&path).unwrap();
+pub fn read_file_to_string(input_path: &PathBuf) -> io::Result<String> {
+    let mut file = File::open(input_path)?;
     let mut out = String::new();
 
-    file.read_to_string(&mut out).unwrap();
+    file.read_to_string(&mut out)?;
 
-    out
+    Ok(out)
 }
 
-pub fn write_string_to_file(s: &str, output_path: &str) -> Result<usize, std::io::Error> {
-    let path = std::path::Path::new(output_path);
-    let mut file = std::fs::File::create(&path).unwrap();
+pub fn write_string_to_file(s: &str, output_path: &PathBuf) -> io::Result<usize> {
+    let mut file = std::fs::File::create(&output_path)?;
 
     file.write(s.as_bytes())
 }
@@ -104,7 +100,7 @@ pub fn get_square_buf_length(s: &str) -> Option<usize> {
 }
 
 #[cfg(feature = "use_libm")]
-pub fn read_square_char_input(s: &str) -> (usize, String) {
+pub fn read_square_char_input_or_fail(s: &str) -> (usize, String) {
     s.trim()
         .replace("\n", "")
         .pipe(|s| (get_square_buf_length(&s).expect("Must have square buf"), s))
@@ -112,7 +108,10 @@ pub fn read_square_char_input(s: &str) -> (usize, String) {
 
 #[cfg(feature = "use_serde")]
 /// Mark a type as "#[derive(Serialize, Deserialize)]" and it should be usable through this
-pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_vec_to_csv<T: Serialize>(
+    path: &str,
+    data: &[T],
+) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::create(path)?;
     let mut writer = WriterBuilder::new()
         .quote_style(csv::QuoteStyle::NonNumeric) // ensures strings are quoted when needed
@@ -127,7 +126,9 @@ pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<
 }
 
 #[cfg(feature = "use_serde")]
-pub fn read_vec_from_csv<T: DeserializeOwned>(path: &str) -> Result<Vec<T>, Box<dyn std::error::Error>> {
+pub fn read_vec_from_csv<T: DeserializeOwned>(
+    path: &str,
+) -> Result<Vec<T>, Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = ReaderBuilder::new().from_reader(file);
 
@@ -153,31 +154,34 @@ where
 pub fn glob_multiple_file_formats_in_path(
     path: &PathBuf,
     file_formats: &[&str],
-) -> Vec<PathBuf> {
+) -> Result<Vec<PathBuf>, String> {
     use itertools::Itertools;
 
-    file_formats
+    let paths = file_formats
         .into_iter()
         .map(|format| path_push(path, format!("**/*.{format}")))
-        .map(|path| glob::glob(path.to_str().expect("Path must exist")))
-        .map(|res| res.expect("Glob pattern must be valid"))
-        .map(|paths| {
-            paths
-                .map(|res| res.expect("Should get valid path"))
-                .collect::<Vec<_>>()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<String>>();
+
+    let path_bufs = paths
+        .into_iter()
+        .map(|path| glob::glob(&path).map_err(|e| e.to_string()))
+        .flat_map(|paths| {
+            paths?
+                .collect::<Result<Vec<PathBuf>, _>>()
+                .map_err(|e| e.to_string())
         })
-        .concat()
+        .pipe(|x| x)
+        .concat();
+
+    Ok(path_bufs)
 }
 
 /* \begin{RON IO} */
 /// This uses example [repro003](<https://github.com/LanHikari22/rs_repro/blob/main/src/repro_tracked/repro003_ron_read_write.rs>)
 
 #[cfg(feature = "use_ron")]
-use ron::{
-    error::SpannedResult,
-    ser::PrettyConfig,
-    Error as RonError,
-};
+use ron::{error::SpannedResult, ser::PrettyConfig, Error as RonError};
 
 #[cfg(feature = "use_ron")]
 pub fn write_ron_obj_to_str<T: Serialize>(obj: &T) -> Result<String, RonError> {

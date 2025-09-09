@@ -75,19 +75,19 @@ pub fn init_regex_scanner<T: Clone>(
     regex: &str,
     builder_fn: impl Fn(&Vec<String>) -> T + 'static,
 ) -> Box<dyn Fn(&str) -> Option<(T, usize)>> {
-    Regex::new(regex)
-        .unwrap() // This is to avoid recompiling the regex which can be expensive
-        .pipe(|re| {
-            Box::new(move |s: &str| -> Option<(T, usize)> {
-                regex_capture_once(s, &re)
-                    .pipe(|res| match res {
-                        Ok(res) => Some(res),
-                        Err(_) => None,
-                    })?
-                    .pipe(|capture| (builder_fn(&capture), capture[0].len()))
-                    .pipe(|res| Some(res))
-            })
-        })
+    // This is to avoid recompiling the regex which can be expensive
+    let re = Regex::new(regex)
+        .unwrap(); 
+
+    Box::new(move |s: &str| -> Option<(T, usize)> {
+        regex_capture_once(s, &re)
+            .pipe(|res| match res {
+                Ok(res) => Some(res),
+                Err(_) => None,
+            })?
+            .pipe(|capture| (builder_fn(&capture), capture[0].len()))
+            .pipe(|res| Some(res))
+    })
 }
 
 pub fn chain_scanners<T: Clone>(
