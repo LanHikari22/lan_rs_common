@@ -2,19 +2,19 @@
 
 #[cfg(feature = "use_serde")]
 use csv::{ReaderBuilder, WriterBuilder};
+
+#[cfg(feature = "use_im")]
 use im::Vector;
+
 #[cfg(any(feature = "use_serde", feature = "use_ron"))]
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::error::Error;
-use std::io::prelude::*; // needed for traits like the Read trait
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fs::File,
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
-use tap::prelude::*;
 
-use crate::has_decimals;
+use tap::prelude::*;
 
 pub fn read_user_input(prompt: &str) -> String {
     let mut input = String::new();
@@ -48,15 +48,12 @@ pub fn write_string_to_file(s: &str, output_path: &str) -> Result<usize, std::io
     file.write(s.as_bytes())
 }
 
-pub fn parse_fixed_i32_tuple_lines(
-    s: &str,
-    tuple_size: usize,
-) -> Result<Vector<Vector<i32>>, String> {
+pub fn parse_fixed_i32_tuple_lines(s: &str, tuple_size: usize) -> Result<Vec<Vec<i32>>, String> {
     s.trim()
         .lines()
         .map(|line| {
             line.split_ascii_whitespace()
-                .collect::<Vector<_>>()
+                .collect::<Vec<_>>()
                 .pipe(|tokens| match tokens.len() == tuple_size {
                     true => Ok(tokens),
                     false => Err(format!("Invalid length {tuple_size} for line {line}")),
@@ -69,18 +66,18 @@ pub fn parse_fixed_i32_tuple_lines(
                                 .parse::<i32>()
                                 .or(Err(format!("{num_s} is not an i32")))
                         })
-                        .collect::<Result<Vector<_>, String>>()
+                        .collect::<Result<Vec<_>, String>>()
                 })
         })
-        .collect::<Result<Vector<_>, String>>()
+        .collect::<Result<Vec<_>, String>>()
 }
 
-pub fn parse_i32_tuple_lines(s: &str) -> Result<Vector<Vector<i32>>, String> {
+pub fn parse_i32_tuple_lines(s: &str) -> Result<Vec<Vec<i32>>, String> {
     s.trim()
         .lines()
         .map(|line| {
             line.split_ascii_whitespace()
-                .collect::<Vector<_>>()
+                .collect::<Vec<_>>()
                 .pipe(|tokens| {
                     tokens
                         .iter()
@@ -89,24 +86,24 @@ pub fn parse_i32_tuple_lines(s: &str) -> Result<Vector<Vector<i32>>, String> {
                                 .parse::<i32>()
                                 .or(Err(format!("{num_s} is not an i32")))
                         })
-                        .collect::<Result<Vector<_>, String>>()
+                        .collect::<Result<Vec<_>, String>>()
                 })
         })
-        .collect::<Result<Vector<_>, String>>()
+        .collect::<Result<Vec<_>, String>>()
 }
 
+#[cfg(feature = "use_libm")]
 pub fn get_square_buf_length(s: &str) -> Option<usize> {
-    libm::sqrtf(s.len() as f32)
-        // .tap(|res| println!("sqrtf of len is: {res} and s.len() is {}", s.len()))
-        .pipe(|f| {
-            if has_decimals(f) {
-                None
-            } else {
-                Some(f as usize)
-            }
-        })
+    libm::sqrtf(s.len() as f32).pipe(|f| {
+        if has_decimals(f) {
+            None
+        } else {
+            Some(f as usize)
+        }
+    })
 }
 
+#[cfg(feature = "use_libm")]
 pub fn read_square_char_input(s: &str) -> (usize, String) {
     s.trim()
         .replace("\n", "")
@@ -115,7 +112,7 @@ pub fn read_square_char_input(s: &str) -> (usize, String) {
 
 #[cfg(feature = "use_serde")]
 /// Mark a type as "#[derive(Serialize, Deserialize)]" and it should be usable through this
-pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<dyn Error>> {
+pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<dyn std::error::Error>> {
     let file = File::create(path)?;
     let mut writer = WriterBuilder::new()
         .quote_style(csv::QuoteStyle::NonNumeric) // ensures strings are quoted when needed
@@ -130,7 +127,7 @@ pub fn write_vec_to_csv<T: Serialize>(path: &str, data: &[T]) -> Result<(), Box<
 }
 
 #[cfg(feature = "use_serde")]
-pub fn read_vec_from_csv<T: DeserializeOwned>(path: &str) -> Result<Vec<T>, Box<dyn Error>> {
+pub fn read_vec_from_csv<T: DeserializeOwned>(path: &str) -> Result<Vec<T>, Box<dyn std::error::Error>> {
     let file = File::open(path)?;
     let mut reader = ReaderBuilder::new().from_reader(file);
 
@@ -155,22 +152,16 @@ pub fn glob_multiple_file_formats_in_path(
     path: &PathBuf,
     file_formats: &Vec<&str>,
 ) -> Vec<PathBuf> {
-    // println!("glob on {path:?}");
-
     use itertools::Itertools;
+
     file_formats
         .into_iter()
         .map(|format| path_push(path, format!("**/*.{format}")))
-        // .map(|path| {
-        //     println!("new_path: {path:?}");
-        //     path
-        // })
         .map(|path| glob::glob(path.to_str().expect("Path must exist")))
         .map(|res| res.expect("Glob pattern must be valid"))
         .map(|paths| {
             paths
                 .map(|res| res.expect("Should get valid path"))
-                // .map(|path| path.to_str().expect("Should be valid str").to_string())
                 .collect::<Vec<_>>()
         })
         .concat()
@@ -181,17 +172,9 @@ pub fn glob_multiple_file_formats_in_path(
 
 #[cfg(feature = "use_ron")]
 use ron::{
-    de::{Position, SpannedError},
     error::SpannedResult,
     ser::PrettyConfig,
     Error as RonError,
-};
-#[cfg(feature = "use_ron")]
-use std::{
-    // fs::File,
-    // io::{Read, Write},
-    // path::PathBuf,
-    str::FromStr,
 };
 
 #[cfg(feature = "use_ron")]

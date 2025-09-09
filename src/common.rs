@@ -90,10 +90,6 @@ pub fn i32_column_to_freq_map(column: &Vec<i32>) -> HashMap<i32, i32> {
         })
 }
 
-pub fn has_decimals(x: f32) -> bool {
-    x - x.round() != 0.
-}
-
 pub fn is_palindrom(s: &str) -> bool {
     s.chars()
         .zip(s.chars().rev())

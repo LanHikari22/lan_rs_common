@@ -1,5 +1,8 @@
 {
   "rust-analyzer.cargo.features": [
-    "use_ron"
+    "incl_io",
+    "use_glob",
+    "use_ron",
+    "use_serde",
   ]
 }
