@@ -147,10 +147,12 @@ where
     left
 }
 
+/// Searches all folders finding *.{format} for each format in `file_formats` and outputs
+/// the files that match the search
 #[cfg(feature = "use_glob")]
 pub fn glob_multiple_file_formats_in_path(
     path: &PathBuf,
-    file_formats: &Vec<&str>,
+    file_formats: &[&str],
 ) -> Vec<PathBuf> {
     use itertools::Itertools;
 
