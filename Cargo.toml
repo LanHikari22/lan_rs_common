@@ -10,30 +10,46 @@ default = []
 df = ["polars"]
 use_ndarray = ["ndarray", "ndarray-linalg", "blas-src"]
 use_petgraph = ["petgraph", "petgraph-evcxr"]
-incl_plot = ["plotters"]
 use_network = ["reqwest"]
 use_serde = ["csv", "serde"]
 use_glob = ["glob"]
 use_arbitrary = ["arbitrary"]
 use_ron = ["ron", "serde"]
+use_ibig = ["ibig"]
+use_im = ["im"]
+use_libm = ["libm"]
+use_rand = ["rand"]
+use_rayon = ["rayon"]
+
+incl_plot = ["plotters"]
+incl_ubig = ["generator"]
+incl_benchmark = ["generator"]
+incl_ansi = ["bitflags", "im"]
+incl_test = []
+incl_io = []
+incl_regex = ["regex"]
+incl_pipe = []
+incl_math = []
+incl_graph = []
+incl_df = ["polars"]
+incl_common = ["im"]
+incl_graph_search = ["tap"]
 
 [dependencies]
-itertools = "0.14.0"
-bitflags = "2.8.0"
-log = "0.4.25"
 
-derive_builder = "0.20.2"
-generator = "0.8.4"
-ibig = "0.3.6"
-im = "15.1.0"
-libm = "0.2.11"
-rand = "0.8.5"
-rayon = "1.10.0"
-regex = "1.11.1"
-tap = "1.0.1"
-
+itertools = {version = "0.14.0", optional = true }
+tap = { version = "1.0.1", optional = true }
+log = { version = "0.4.25", optional = true }
+bitflags = { version = "2.8.0", optional = true }
+derive_builder = { version = "0.20.2", optional = true }
+generator = { version = "0.8.4", optional = true }
+ibig = { version = "0.3.6", optional = true }
+im = { version = "15.1.0", optional = true }
+libm = { version = "0.2.11", optional = true }
+rand = { version = "0.8.5", optional = true }
+rayon = { version = "1.10.0", optional = true }
+regex = { version = "1.11.1", optional = true }
 reqwest = { version = "0.12.12", features = ["blocking"], optional = true }
-
 glob = { version = "0.3.2", optional = true }
 
 petgraph = { version = "0.7.1", optional = true }
@@ -45,7 +61,6 @@ polars = { version = "0.46.0", features = ["lazy"], optional = true}
 ndarray = { version = "0.16.1", optional = true}
 ndarray-linalg = { version = "0.16", features = ["openblas"], optional = true}
 blas-src = { version = "0.9", default-features = false, features = ["openblas"], optional = true }
-
 
 serde = { version = "1.0.219", features = ["derive"], optional = true}
 ron = { version = "0.10.1", optional = true }

@@ -1,15 +1,20 @@
 #[allow(unused_imports)]
 // use std::collections::HashMap;
-use bitflags::bitflags;
 use core::num;
+
 #[allow(unused_imports)]
+#[cfg(feature = "use_im")]
 use im::{hashmap, hashset, ordset, HashMap, HashSet, OrdSet};
+
 #[allow(unused_imports)]
 use itertools::FoldWhile::{Continue, Done};
+
 #[allow(unused_imports)]
 use itertools::Itertools;
+
+#[cfg(feature = "usb_libm")]
 use libm;
-use regex::Regex;
+
 #[cfg(feature = "use_network")]
 use reqwest::blocking::Client;
 use std::fs::File;

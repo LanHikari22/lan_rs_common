@@ -1,23 +1,21 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
-use im::{hashmap, hashset, ordset, vector, HashMap, HashSet, OrdSet, Vector};
-use tap::prelude::*;
-
-pub mod common;
+#[cfg(feature = "incl_plot")]
 pub mod plot;
+
+#[cfg(feature = "incl_graph_search")]
 pub mod graph_search;
 
+#[cfg(feature = "incl_common")]
+pub mod common;
+
+#[cfg(feature = "incl_common")]
 pub use common::*;
 
 pub mod util;
-pub use util::*;
-
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn test_solution1() {

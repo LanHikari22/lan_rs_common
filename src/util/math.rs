@@ -1,6 +1,8 @@
 use ibig::{ubig, UBig};
 
+#[cfg(feature = "incl_ubig")]
 use super::ubig::*;
+
 use rayon::prelude::*;
 use tap::prelude::*;
 
